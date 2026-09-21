@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Flores Amarillas 🌻</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000}
+body{font-family:Georgia,serif;touch-action:manipulation}
+canvas{position:fixed;inset:0;width:100%;height:100%}
+#start{
+ position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
+ background:radial-gradient(circle,#15100a 0,#000 65%);
+ color:white;text-align:center;cursor:pointer
+}
+.startbox{padding:30px}
+.startbox .flower{font-size:65px;filter:drop-shadow(0 0 18px #ffd52a)}
+.startbox h1{font-size:25px;font-weight:400;letter-spacing:1px}
+.startbox p{font-family:Arial;font-size:14px;opacity:.7}
+#message{
+ position:fixed;z-index:10;top:10%;left:50%;transform:translateX(-50%);
+ width:92%;text-align:center;color:#fff6b0;opacity:0;
+ text-shadow:0 0 20px #ffc400,0 2px 5px #000;
+ animation:fadeIn 2.5s 5s forwards
+}
+#message h1{font-size:clamp(27px,7vw,48px);font-weight:400;margin:0}
+#message p{font-family:Arial;font-size:14px;letter-spacing:2px;margin-top:13px;color:#fff}
+@keyframes fadeIn{to{opacity:1}}
+#music{
+ position:fixed;right:18px;top:18px;z-index:12;border:1px solid #ffffff44;
+ background:#ffffff12;color:#fff;border-radius:50%;width:45px;height:45px;
+ backdrop-filter:blur(8px);font-size:20px
+}
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div id="start">
+  <div class="startbox">
+    <div class="flower">🌻</div>
+    <h1>Toca para comenzar</h1>
+    <p>Una sorpresa hecha con flores amarillas</p>
+  </div>
+</div>
+
+<div id="message">
+  <h1>Para Juan 🌻</h1>
+  <p>QUE NUNCA TE FALTEN MOTIVOS PARA SONREÍR</p>
+</div>
+
+<button id="music">🎵</button>
+
+<script>
+const c=document.getElementById("canvas"),ctx=c.getContext("2d");
+let W,H,D=1,flowers=[],hearts=[],sparkles=[],running=false,audioCtx=null;
+
+function resize(){
+ D=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;
+ c.width=W*D;c.height=H*D;ctx.setTransform(D,0,0,D,0,0);
+}
+addEventListener("resize",resize);resize();
+
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const ease=t=>1-Math.pow(1-t,3);
+
+function makeFlower(x,delay=0,scale=1){
+ flowers.push({
+  x,base:H*1.03,h:rnd(H*.30,H*.65)*scale,
+  size:rnd(17,29)*scale,lean:rnd(-18,18),
+  delay,dur:rnd(2100,3000),born:performance.now()
+ });
+}
+
+function createScene(){
+ flowers=[];
+ const positions=[.08,.20,.32,.44,.56,.68,.80,.92];
+ positions.forEach((p,i)=>makeFlower(W*p,i*380,rnd(.75,1.18)));
+ setTimeout(()=>{for(let i=0;i<8;i++)makeFlower(rnd(W*.03,W*.97),i*180,rnd(.65,1));},2600);
+}
+
+function stem(f,t){
+ const sway=Math.sin(t*4+f.x)*f.lean;
+ const topX=f.x+sway,topY=f.base-f.h*t;
+ ctx.beginPath();ctx.moveTo(f.x,f.base);
+ ctx.bezierCurveTo(f.x-8,f.base-f.h*.35,topX+5,f.base-f.h*.7,topX,topY);
+ ctx.strokeStyle="#286d32";ctx.lineWidth=Math.max(2,f.size*.16);ctx.stroke();
+
+ // leaves
+ for(let k=.30;k<.9;k+=.25){
+  const y=f.base-f.h*k,x=f.x+sway*k;
+  const side=((Math.floor(k*10)+f.x)%2?1:-1);
+  ctx.save();ctx.translate(x,y);ctx.rotate(side*.65);
+  ctx.beginPath();ctx.ellipse(side*f.size*.65,0,f.size*.7,f.size*.25,0,0,Math.PI*2);
+  ctx.fillStyle="#397f36";ctx.fill();ctx.restore();
+ }
+}
+
+function head(f,t){
+ const open=ease(Math.max(0,Math.min(1,(t-.58)/.42)));
+ const x=f.x+Math.sin(t*4+f.x)*f.lean,y=f.base-f.h*t;
+ const r=f.size*(.55+.75*open);
+ ctx.save();ctx.translate(x,y);
+ for(let i=0;i<13;i++){
+  ctx.save();ctx.rotate(i*Math.PI*2/13);
+  ctx.scale(.65,1);
+  ctx.beginPath();ctx.ellipse(0,-r*.63,r*.52,r,0,0,Math.PI*2);
+  ctx.fillStyle=i%2?"#ffd52a":"#ffe45a";ctx.shadowBlur=9;ctx.shadowColor="#ffd21c";
+  ctx.fill();ctx.restore();
+ }
+ ctx.shadowBlur=0;
+ ctx.beginPath();ctx.arc(0,0,r*.34,0,Math.PI*2);
+ ctx.fillStyle="#8b5916";ctx.fill();
+ ctx.beginPath();ctx.arc(0,0,r*.18,0,Math.PI*2);
+ ctx.fillStyle="#d89220";ctx.fill();
+ ctx.restore();
+}
+
+function heart(x,y,s){
+ ctx.save();ctx.translate(x,y);ctx.scale(s,s);
+ ctx.beginPath();ctx.moveTo(0,9);
+ ctx.bezierCurveTo(-28,-9,-17,-27,0,-14);
+ ctx.bezierCurveTo(17,-27,28,-9,0,9);
+ ctx.fillStyle="#ffd34d";ctx.shadowBlur=15;ctx.shadowColor="#ffcc33";ctx.fill();
+ ctx.restore();
+}
+
+function sparkle(){
+ sparkles.push({x:rnd(0,W),y:rnd(H*.15,H*.9),s:rnd(1,3),a:1,life:rnd(60,130)});
+}
+
+function animate(){
+ ctx.clearRect(0,0,W,H);
+
+ // cinematic black background + warm glow
+ const bg=ctx.createRadialGradient(W*.5,H*.72,0,W*.5,H*.65,H*.8);
+ bg.addColorStop(0,"rgba(111,75,5,.16)");
+ bg.addColorStop(.5,"rgba(30,22,4,.08)");
+ bg.addColorStop(1,"rgba(0,0,0,0)");
+ ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+
+ const now=performance.now();
+ flowers.forEach(f=>{
+  let t=Math.max(0,Math.min(1,(now-f.born-f.delay)/f.dur));
+  if(t>0){let p=ease(t);stem(f,p);head(f,p)}
+ });
+
+ // floating hearts
+ hearts.forEach((q,i)=>{
+  q.y-=q.v;q.a-=.004;q.x+=Math.sin(q.phase+=.025)*.35;
+  ctx.globalAlpha=Math.max(0,q.a);heart(q.x,q.y,q.s);
+  if(q.a<=0)hearts.splice(i,1);
+ });
+
+ sparkles.forEach((q,i)=>{
+  q.life--;q.a=Math.min(1,q.life/30);
+  ctx.globalAlpha=q.a;ctx.fillStyle="#ffe98a";
+  ctx.beginPath();ctx.arc(q.x,q.y,q.s,0,Math.PI*2);ctx.fill();
+  if(q.life<=0)sparkles.splice(i,1);
+ });
+ ctx.globalAlpha=1;
+
+ if(running && Math.random()<.06)sparkle();
+ if(running && Math.random()<.018)
+  hearts.push({x:rnd(W*.08,W*.92),y:H*rnd(.35,.8),v:rnd(.3,.8),s:rnd(.18,.42),a:.9,phase:rnd(0,6)});
+ requestAnimationFrame(animate);
+}
+animate();
+
+function music(){
+ if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+ const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+ o.type="sine";o.frequency.value=261.63;g.gain.value=.035;
+ o.connect(g);g.connect(audioCtx.destination);o.start();
+ // gentle repeating tones
+ const notes=[261.63,329.63,392,329.63,293.66,349.23,440,349.23];
+ let i=0;
+ setInterval(()=>{
+  if(!audioCtx)return;
+  const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();
+  osc.type="sine";osc.frequency.value=notes[i++%notes.length];
+  gain.gain.setValueAtTime(.0001,audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(.045,audioCtx.currentTime+.15);
+  gain.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+1.8);
+  osc.connect(gain);gain.connect(audioCtx.destination);osc.start();osc.stop(audioCtx.currentTime+2);
+ },1700);
+}
+
+document.getElementById("start").addEventListener("click",()=>{
+ document.getElementById("start").style.display="none";
+ running=true;createScene();music();
+});
+
+document.getElementById("music").addEventListener("click",()=>{
+ if(audioCtx && audioCtx.state==="running")audioCtx.suspend();
+ else if(audioCtx)audioCtx.resume();else music();
+});
+
+addEventListener("pointerdown",e=>{
+ if(!running)return;
+ if(e.target.id==="music")return;
+ for(let i=0;i<3;i++)hearts.push({
+  x:e.clientX+rnd(-20,20),y:e.clientY+rnd(-10,10),
+  v:rnd(.5,1.2),s:rnd(.15,.35),a:1,phase:rnd(0,6)
+ });
+});
+</script>
+</body>
+</html>
